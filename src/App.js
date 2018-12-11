@@ -10,13 +10,13 @@ const axiosGitHubGraphQL = axios.create({
 });
 const TITLE = 'React GraphQL GitHub Client';
 
-// Store the query to GitHub API in a template string
-const GET_ISSUE_REPO = `
+// The query to GitHub API
+const getIssuesOfRepoQuery = (organization, repository) => `
   {
-    organization(login: "the-road-to-learn-react") {
+    organization(login: "${organization}") {
       name
       url
-      repository(name: "the-road-to-learn-react") {
+      repository(name: "${repository}") {
         name
         url
         issues(last: 5) {
@@ -32,6 +32,19 @@ const GET_ISSUE_REPO = `
     }
   }
 `
+// Use axios to send a request with the query and return a promise
+const getIssuesOfRepo = path => {
+  const [organization, repository] = path.split('/');
+  return axiosGitHubGraphQL.post('', {
+      query: getIssuesOfRepoQuery(organization, repository),
+  });
+};
+
+// Higher order function for this.setState() method and to get the result from the promise
+const resolveIssuesQuery = queryResult => () => ({
+  organization: queryResult.data.data.organization,
+  errors: queryResult.data.errors,
+});
 
 class App extends Component {
   state = {
@@ -41,7 +54,7 @@ class App extends Component {
   };
 
   componentDidMount() {
-    this.onFetchFromGithub();
+    this.onFetchFromGithub(this.state.path);
   }
 
   onChange = event => {
@@ -49,21 +62,16 @@ class App extends Component {
   };
 
   onSubmit = event => {
-    // fetch data
+    this.onFetchFromGithub(this.state.path);
     event.preventDefault();
   };
 
   // Use axios to perform HTTP POST request with a GraphQL query as payload.
   // Fetch the organization information from Github API.
-  onFetchFromGithub = () => {
-    axiosGitHubGraphQL
-      .post('', {query: GET_ISSUE_REPO})
-      .then(result => 
-        this.setState(() => ({
-          organization: result.data.data.organization,
-          errors: result.data.errors,
-        })),
-      );
+  onFetchFromGithub = path => {
+    getIssuesOfRepo(path).then(queryResult => 
+      this.setState(resolveIssuesQuery(queryResult)),
+    );
   };
 
   render() {
